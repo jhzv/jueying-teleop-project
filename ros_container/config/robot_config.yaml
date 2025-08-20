@@ -1,0 +1,30 @@
+# Configuración del Robot Jueying Lite3
+robot:
+  name: "jueying_lite3"
+  motion_host_ip: "192.168.1.100"  # IP del Motion Host
+  perception_host_ip: "192.168.1.101"  # IP del Perception Host
+
+# Configuración de rosbridge
+rosbridge:
+  port: 9090
+  address: "0.0.0.0"
+  retry_startup_delay: 5
+  fragment_timeout: 600
+  delay_between_messages: 0
+  max_message_size: null
+  authenticate: false
+
+# Límites de control
+control_limits:
+  max_linear_speed: 1.0    # m/s
+  max_angular_speed: 1.0   # rad/s
+  max_height_change: 0.3   # m
+  max_pitch: 0.5           # rad
+  max_roll: 0.5            # rad
+  max_yaw: 1.57            # rad
+  
+# Timeouts de seguridad
+safety:
+  cmd_vel_timeout: 0.25    # segundos
+  pose_cmd_timeout: 1.0    # segundos
+  heartbeat_interval: 2.0  # segundos

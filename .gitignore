@@ -1,0 +1,24 @@
+# Docker builds y logs
+*.log
+.docker/
+docker-backups/
+
+# ROS builds
+**/build/
+**/devel/
+**/install/
+**/.catkin_workspace
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos temporales
+*~
+.DS_Store
+
+# Archivos de respaldo locales
+backup-*.tar
+backup-*.tar.gz
