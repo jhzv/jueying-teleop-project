@@ -1,4 +1,4 @@
-// server.js - Versión SIMPLE del multiplexor con autenticación básica
+// server.js - Versión SIMPLE del multiplexor para testing inicial
 const WebSocket = require('ws');
 const http = require('http');
 const express = require('express');
@@ -29,29 +29,6 @@ const state = {
     rosbridgeWs: null,
     rosbridgeConnected: false
 };
-
-// Endpoint de autenticación (versión simple para desarrollo)
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    // Usuarios hardcoded para desarrollo
-    const validUsers = {
-        'operator1': 'password123',
-        'admin': 'admin123'
-    };
-    
-    if (validUsers[username] && validUsers[username] === password) {
-        res.json({
-            token: 'dev-token-' + Date.now(),
-            role: username === 'admin' ? 'admin' : 'operator',
-            expiresIn: 3600
-        });
-        console.log(`✅ Login exitoso: ${username}`);
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
-        console.log(`❌ Login fallido: ${username || 'unknown'}`);
-    }
-});
 
 // Endpoint básico de status
 app.get('/api/status', (req, res) => {
@@ -141,43 +118,9 @@ wss.on('connection', (ws, req) => {
             const message = JSON.parse(data);
             console.log(`📨 Cliente ${clientId} envió:`, message.type || 'unknown');
             
-            // Si es un mensaje de autenticación, confirmarlo
-            if (message.type === 'auth') {
-                ws.send(JSON.stringify({
-                    type: 'auth_success',
-                    data: { timestamp: Date.now() }
-                }));
-                return;
-            }
-            
-            // Si es una solicitud de control, otorgarlo (versión simple)
-            if (message.type === 'control_request') {
-                if (message.action === 'request') {
-                    ws.send(JSON.stringify({
-                        type: 'control_granted',
-                        data: { timestamp: Date.now() }
-                    }));
-                    console.log(`🎮 Control otorgado a cliente ${clientId}`);
-                } else if (message.action === 'release') {
-                    ws.send(JSON.stringify({
-                        type: 'control_released',
-                        data: { timestamp: Date.now() }
-                    }));
-                    console.log(`🚪 Control liberado por cliente ${clientId}`);
-                }
-                return;
-            }
-            
-            // Ignorar heartbeats (solo log)
-            if (message.type === 'heartbeat') {
-                return;
-            }
-            
             // Por ahora, simplemente reenviar a rosbridge
             if (state.rosbridgeWs && state.rosbridgeWs.readyState === WebSocket.OPEN) {
-                // Si tiene campo 'data', usar ese (para mensajes del frontend_multiplexor)
-                const rosMessage = message.data || message;
-                state.rosbridgeWs.send(JSON.stringify(rosMessage));
+                state.rosbridgeWs.send(JSON.stringify(message));
             } else {
                 ws.send(JSON.stringify({
                     type: 'error',
@@ -217,7 +160,6 @@ server.listen(PORT, () => {
     console.log(`${'='.repeat(50)}`);
     console.log(`📍 API HTTP: http://localhost:${PORT}/api/status`);
     console.log(`📍 WebSocket: ws://localhost:${PORT}`);
-    console.log(`🔐 Login: POST http://localhost:${PORT}/api/login`);
     console.log(`${'='.repeat(50)}\n`);
     
     // Conectar a rosbridge

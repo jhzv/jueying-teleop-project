@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jueying Lite3 - Control Remoto Multiplexor</title>
+    <script src="https://cdn.jsdelivr.net/npm/roslibjs@1.3.0/build/roslib.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-section {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 0.9em;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected { background: #4CAF50; }
+        .status-disconnected { background: #f44336; }
+        .status-warning { background: #ff9800; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .left-panel, .right-panel {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .auth-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 1em;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .movement-controls {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .joystick-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .joystick {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #4CAF50;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            transition: background 0.2s;
+        }
+
+        .joystick:active {
+            cursor: grabbing;
+            background: #45a049;
+        }
+
+        .telemetry-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .telemetry-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .telemetry-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .telemetry-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .message-log {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-info { color: #4CAF50; }
+        .log-warning { color: #ff9800; }
+        .log-error { color: #f44336; }
+        .log-system { color: #2196F3; }
+
+        .network-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .footer {
+            grid-column: 1 / -1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto auto;
+            }
+            
+            .left-panel, .right-panel {
+                order: 2;
+            }
+            
+            .main-content {
+                order: 1;
+            }
+            
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-section">
+                <h1>🤖 Jueying Lite3</h1>
+                <span>Sistema de Teleoperación Remota</span>
+            </div>
+            <div class="status-section">
+                <div class="status-indicator">
+                    <div class="status-dot status-disconnected" id="connectionStatus"></div>
+                    <span id="connectionText">Desconectado</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot status-disconnected" id="authStatus"></div>
+                    <span id="authText">No autenticado</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot status-disconnected" id="controlStatus"></div>
+                    <span id="controlText">Sin control</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Panel Izquierdo -->
+        <aside class="left-panel">
+            <!-- Sección de Autenticación -->
+            <div class="auth-section" id="authSection">
+                <div class="section-title">🔐 Autenticación</div>
+                <div class="input-group">
+                    <label for="username">Usuario:</label>
+                    <input type="text" id="username" placeholder="operator1 / admin">
+                </div>
+                <div class="input-group">
+                    <label for="password">Contraseña:</label>
+                    <input type="password" id="password" placeholder="password123 / admin123">
+                </div>
+                <button class="btn btn-primary" onclick="authenticate()">
+                    🔑 Iniciar Sesión
+                </button>
+            </div>
+
+            <!-- Estadísticas de Red -->
+            <div class="section-title">📊 Estado de Red</div>
+            <div class="network-stats">
+                <div class="stat-item">
+                    <div class="telemetry-value" id="latencyValue">--</div>
+                    <div class="telemetry-label">Latencia (ms)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="telemetry-value" id="packetsLost">--</div>
+                    <div class="telemetry-label">Pérdida (%)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="telemetry-value" id="clientCount">--</div>
+                    <div class="telemetry-label">Clientes</div>
+                </div>
+            </div>
+
+            <!-- Control de Sesión -->
+            <div class="section-title">⚡ Control de Sesión</div>
+            <div class="control-buttons">
+                <button class="btn btn-primary" id="requestControlBtn" onclick="requestControl()" disabled>
+                    🎮 Solicitar Control
+                </button>
+                <button class="btn btn-warning" id="releaseControlBtn" onclick="releaseControl()" disabled>
+                    🚪 Liberar Control
+                </button>
+            </div>
+
+            <!-- Comandos de Robot -->
+            <div class="section-title">🤖 Comandos Rápidos</div>
+            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="sendRobotCommand('stand')" disabled id="standBtn">
+                    ⬆️ Stand Up
+                </button>
+                <button class="btn btn-warning" onclick="sendRobotCommand('sit')" disabled id="sitBtn">
+                    ⬇️ Sit Down
+                </button>
+                <button class="btn btn-danger" onclick="sendEmergencyStop()">
+                    🛑 STOP
+                </button>
+                <button class="btn btn-primary" onclick="sendRobotCommand('reset')" disabled id="resetBtn">
+                    🔄 Reset
+                </button>
+            </div>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="main-content">
+            <div class="control-grid">
+                <!-- Controles de Movimiento -->
+                <div class="movement-controls">
+                    <div class="section-title">🕹️ Control de Movimiento</div>
+                    
+                    <!-- Joystick Virtual -->
+                    <div class="joystick-container" id="joystickContainer">
+                        <div class="joystick" id="joystick"></div>
+                    </div>
+                    
+                    <!-- Valores de Velocidad -->
+                    <div class="telemetry-grid">
+                        <div class="telemetry-item">
+                            <div class="telemetry-value" id="linearX">0.0</div>
+                            <div class="telemetry-label">Linear X (m/s)</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-value" id="angularZ">0.0</div>
+                            <div class="telemetry-label">Angular Z (rad/s)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Telemetría del Robot -->
+                <div class="telemetry-section">
+                    <div class="section-title">📈 Telemetría en Tiempo Real</div>
+                    <div class="telemetry-grid">
+                        <div class="telemetry-item">
+                            <div class="telemetry-value" id="batteryLevel">--</div>
+                            <div class="telemetry-label">Batería (%)</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-value" id="gaitState">--</div>
+                            <div class="telemetry-label">Gait Actual</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-value" id="imuRoll">--</div>
+                            <div class="telemetry-label">Roll (°)</div>
+                        </div>
+                        <div class="telemetry-item">
+                            <div class="telemetry-value" id="imuPitch">--</div>
+                            <div class="telemetry-label">Pitch (°)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Panel Derecho -->
+        <aside class="right-panel">
+            <div class="section-title">📝 Log del Sistema</div>
+            <div class="message-log" id="messageLog"></div>
+        </aside>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div>© 2025 Skaler S.A. - UAO Ingeniería Mecatrónica</div>
+            <div>Desarrollado por: Jhosep Amaury Zapata Varela</div>
+            <div id="footerStats">Servidor: Desconectado</div>
+        </footer>
+    </div>
+
+    <script>
+        // Variables globales
+        let multiplexorWs = null;
+        let rosConnection = null;
+        let authToken = null;
+        let isAuthenticated = false;
+        let hasControl = false;
+        let currentUser = null;
+        let heartbeatInterval = null;
+        let joystickActive = false;
+        let currentVelocity = { linear: { x: 0, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } };
+
+        // Configuración
+        const config = {
+            multiplexorUrl: 'ws://localhost:8080', // Cambiar por tu dominio
+            apiUrl: 'http://localhost:8080/api', // Cambiar por tu dominio
+            maxLinearVel: 1.0,
+            maxAngularVel: 2.0,
+            controlFrequency: 20 // Hz
+        };
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeJoystick();
+            logMessage('system', 'Sistema iniciado. Ingresa credenciales para conectar.');
+            
+            // Teclas de acceso rápido
+            document.addEventListener('keydown', handleKeyboard);
+            document.addEventListener('keyup', handleKeyboardRelease);
+        });
+
+        // Autenticación
+        async function authenticate() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                logMessage('error', 'Ingresa usuario y contraseña');
+                return;
+            }
+
+            try {
+                logMessage('info', 'Autenticando...');
+                
+                const response = await fetch(`${config.apiUrl}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.token;
+                    currentUser = { username, role: data.role };
+                    isAuthenticated = true;
+                    
+                    updateAuthStatus(true);
+                    logMessage('info', `Autenticado como ${username} (${data.role})`);
+                    
+                    // Conectar al multiplexor
+                    connectToMultiplexor();
+                    
+                    // Ocultar formulario de auth
+                    document.getElementById('authSection').style.display = 'none';
+                } else {
+                    const error = await response.json();
+                    logMessage('error', `Error de autenticación: ${error.error}`);
+                }
+            } catch (error) {
+                logMessage('error', `Error de conexión: ${error.message}`);
+            }
+        }
+
+        // Conexión al multiplexor
+        function connectToMultiplexor() {
+            logMessage('info', 'Conectando al servidor multiplexor...');
+            
+            multiplexorWs = new WebSocket(config.multiplexorUrl);
+
+            multiplexorWs.onopen = function() {
+                logMessage('info', 'Conectado al servidor multiplexor');
+                updateConnectionStatus(true);
+                
+                // Enviar token de autenticación
+                sendToMultiplexor({
+                    type: 'auth',
+                    token: authToken
+                });
+                
+                // Iniciar heartbeat
+                startHeartbeat();
+            };
+
+            multiplexorWs.onmessage = function(event) {
+                handleMultiplexorMessage(JSON.parse(event.data));
+            };
+
+            multiplexorWs.onclose = function() {
+                logMessage('warning', 'Desconectado del servidor. Reintentando...');
+                updateConnectionStatus(false);
+                updateControlStatus(false);
+                
+                // Reintentar conexión en 3 segundos
+                setTimeout(connectToMultiplexor, 3000);
+            };
+
+            multiplexorWs.onerror = function(error) {
+                logMessage('error', `Error de WebSocket: ${error}`);
+            };
+        }
+
+        // Manejo de mensajes del multiplexor
+        function handleMultiplexorMessage(message) {
+            switch (message.type) {
+                case 'auth_success':
+                    logMessage('info', 'Autenticación exitosa con el servidor');
+                    enableControlButtons();
+                    break;
+                
+                case 'auth_failed':
+                    logMessage('error', 'Fallo de autenticación con el servidor');
+                    isAuthenticated = false;
+                    updateAuthStatus(false);
+                    break;
+                
+                case 'control_granted':
+                    logMessage('info', 'Control otorgado');
+                    updateControlStatus(true);
+                    hasControl = true;
+                    break;
+                
+                case 'control_denied':
+                    logMessage('warning', `Control denegado: ${message.data.reason}`);
+                    hasControl = false;
+                    break;
+                
+                case 'control_released':
+                    logMessage('info', 'Control liberado');
+                    updateControlStatus(false);
+                    hasControl = false;
+                    break;
+                
+                case 'control_changed':
+                    logMessage('info', `Control transferido a: ${message.data.controller}`);
+                    if (message.data.controller !== currentUser.username) {
+                        hasControl = false;
+                        updateControlStatus(false);
+                    }
+                    break;
+                
+                case 'ros_data':
+                    updateRobotTelemetry(message.data);
+                    break;
+                
+                case 'heartbeat':
+                    updateNetworkStats(message.data);
+                    break;
+                
+                case 'system':
+                    handleSystemMessage(message);
+                    break;
+                
+                case 'error':
+                    logMessage('error', `Error del servidor: ${message.data.message}`);
+                    break;
+            }
+        }
+
+        // Solicitar control
+        function requestControl() {
+            if (!isAuthenticated || !multiplexorWs) return;
+            
+            sendToMultiplexor({
+                type: 'control_request',
+                action: 'request'
+            });
+            
+            logMessage('info', 'Solicitando control del robot...');
+        }
+
+        // Liberar control
+        function releaseControl() {
+            if (!hasControl) return;
+            
+            sendToMultiplexor({
+                type: 'control_request',
+                action: 'release'
+            });
+            
+            // Detener movimiento
+            sendVelocityCommand(0, 0);
+            logMessage('info', 'Liberando control del robot...');
+        }
+
+        // Enviar comando al multiplexor
+        function sendToMultiplexor(message) {
+            if (multiplexorWs && multiplexorWs.readyState === WebSocket.OPEN) {
+                multiplexorWs.send(JSON.stringify(message));
+            }
+        }
+
+        // Enviar comando de velocidad
+        function sendVelocityCommand(linear, angular) {
+            if (!hasControl) return;
+            
+            const cmdVel = {
+                op: 'publish',
+                topic: '/cmd_vel',
+                msg: {
+                    linear: { x: linear, y: 0, z: 0 },
+                    angular: { x: 0, y: 0, z: angular }
+                }
+            };
+            
+            sendToMultiplexor({
+                type: 'ros_message',
+                data: cmdVel
+            });
+            
+            // Actualizar UI
+            currentVelocity = cmdVel.msg;
+            updateVelocityDisplay();
+        }
+
+        // Comandos de robot
+        function sendRobotCommand(command) {
+            if (!hasControl) {
+                logMessage('warning', 'Necesitas control para enviar comandos');
+                return;
+            }
+            
+            let topic, message;
+            
+            switch (command) {
+                case 'stand':
+                    topic = '/pose_cmd';
+                    message = { data: 'stand' };
+                    break;
+                case 'sit':
+                    topic = '/pose_cmd';
+                    message = { data: 'sit' };
+                    break;
+                case 'reset':
+                    topic = '/reset_cmd';
+                    message = { data: true };
+                    break;
+                default:
+                    return;
+            }
+            
+            sendToMultiplexor({
+                type: 'ros_message',
+                data: {
+                    op: 'publish',
+                    topic: topic,
+                    msg: message
+                }
+            });
+            
+            logMessage('info', `Comando enviado: ${command}`);
+        }
+
+        // Parada de emergencia
+        function sendEmergencyStop() {
+            sendVelocityCommand(0, 0);
+            logMessage('warning', 'PARADA DE EMERGENCIA ACTIVADA');
+        }
+
+        // Inicializar joystick virtual
+        function initializeJoystick() {
+            const container = document.getElementById('joystickContainer');
+            const joystick = document.getElementById('joystick');
+            let isDragging = false;
+            let centerX = 100;
+            let centerY = 100;
+            let maxRadius = 80;
+
+            function handleStart(e) {
+                if (!hasControl) return;
+                isDragging = true;
+                joystickActive = true;
+                joystick.style.background = '#45a049';
+            }
+
+            function handleMove(e) {
+                if (!isDragging || !hasControl) return;
+                
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                
+                let x = clientX - rect.left - centerX;
+                let y = clientY - rect.top - centerY;
+                
+                const distance = Math.sqrt(x * x + y * y);
+                
+                if (distance > maxRadius) {
+                    x = (x / distance) * maxRadius;
+                    y = (y / distance) * maxRadius;
+                }
+                
+                joystick.style.left = (centerX + x) + 'px';
+                joystick.style.top = (centerY + y) + 'px';
+                
+                // Calcular velocidades
+                const linear = -y / maxRadius * config.maxLinearVel;
+                const angular = -x / maxRadius * config.maxAngularVel;
+                
+                sendVelocityCommand(linear, angular);
+            }
+
+            function handleEnd() {
+                isDragging = false;
+                joystickActive = false;
+                
+                // Volver al centro
+                joystick.style.left = centerX + 'px';
+                joystick.style.top = centerY + 'px';
+                joystick.style.background = '#4CAF50';
+                
+                // Detener movimiento
+                sendVelocityCommand(0, 0);
+            }
+
+            // Mouse events
+            joystick.addEventListener('mousedown', handleStart);
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+
+            // Touch events
+            joystick.addEventListener('touchstart', handleStart);
+            document.addEventListener('touchmove', handleMove);
+            document.addEventListener('touchend', handleEnd);
+        }
+
+        // Control por teclado
+        const activeKeys = new Set();
+
+        function handleKeyboard(e) {
+            if (!hasControl || joystickActive) return;
+            
+            activeKeys.add(e.key.toLowerCase());
+            updateMovementFromKeys();
+        }
+
+        function handleKeyboardRelease(e) {
+            activeKeys.delete(e.key.toLowerCase());
+            updateMovementFromKeys();
+        }
+
+        function updateMovementFromKeys() {
+            let linear = 0;
+            let angular = 0;
+            
+            // Movimiento lineal
+            if (activeKeys.has('w') || activeKeys.has('arrowup')) linear += config.maxLinearVel;
+            if (activeKeys.has('s') || activeKeys.has('arrowdown')) linear -= config.maxLinearVel;
+            
+            // Movimiento angular
+            if (activeKeys.has('a') || activeKeys.has('arrowleft')) angular += config.maxAngularVel;
+            if (activeKeys.has('d') || activeKeys.has('arrowright')) angular -= config.maxAngularVel;
+            
+            // Comandos rápidos
+            if (activeKeys.has(' ')) {
+                sendEmergencyStop();
+                return;
+            }
+            
+            sendVelocityCommand(linear, angular);
+        }
+
+        // Actualizar telemetría del robot
+        function updateRobotTelemetry(data) {
+            if (data.topic === '/battery_state') {
+                document.getElementById('batteryLevel').textContent = 
+                    Math.round(data.msg.percentage * 100);
+            }
+            
+            if (data.topic === '/gait_state') {
+                document.getElementById('gaitState').textContent = data.msg.current_gait || '--';
+            }
+            
+            if (data.topic === '/imu') {
+                const imu = data.msg;
+                if (imu.orientation) {
+                    // Convertir quaternion a Euler (simplificado)
+                    const roll = Math.atan2(2 * (imu.orientation.w * imu.orientation.x + imu.orientation.y * imu.orientation.z),
+                        1 - 2 * (imu.orientation.x * imu.orientation.x + imu.orientation.y * imu.orientation.y));
+                    const pitch = Math.asin(2 * (imu.orientation.w * imu.orientation.y - imu.orientation.z * imu.orientation.x));
+                    
+                    document.getElementById('imuRoll').textContent = (roll * 180 / Math.PI).toFixed(1);
+                    document.getElementById('imuPitch').textContent = (pitch * 180 / Math.PI).toFixed(1);
+                }
+            }
+        }
+
+        // Actualizar estadísticas de red
+        function updateNetworkStats(data) {
+            if (data.networkStats) {
+                document.getElementById('latencyValue').textContent = 
+                    Math.round(data.networkStats.latency);
+                document.getElementById('packetsLost').textContent = 
+                    data.networkStats.packetsLost.toFixed(1);
+            }
+            
+            if (data.serverLoad) {
+                document.getElementById('clientCount').textContent = data.serverLoad.clientLoad || '--';
+            }
+            
+            // Actualizar footer
+            document.getElementById('footerStats').textContent = 
+                `Servidor: Activo | Memoria: ${data.serverLoad?.memoryUsed || '--'}MB`;
+        }
+
+        // Actualizar display de velocidad
+        function updateVelocityDisplay() {
+            document.getElementById('linearX').textContent = currentVelocity.linear.x.toFixed(2);
+            document.getElementById('angularZ').textContent = currentVelocity.angular.z.toFixed(2);
+        }
+
+        // Manejar mensajes del sistema
+        function handleSystemMessage(message) {
+            switch (message.action) {
+                case 'welcome':
+                    logMessage('system', `Conectado al servidor. ID: ${message.data.clientId}`);
+                    break;
+                case 'rosbridge_connected':
+                    logMessage('info', 'ROS Bridge conectado');
+                    break;
+                case 'rosbridge_disconnected':
+                    logMessage('warning', 'ROS Bridge desconectado');
+                    break;
+            }
+        }
+
+        // Heartbeat
+        function startHeartbeat() {
+            heartbeatInterval = setInterval(() => {
+                if (multiplexorWs && multiplexorWs.readyState === WebSocket.OPEN) {
+                    sendToMultiplexor({
+                        type: 'heartbeat',
+                        timestamp: Date.now()
+                    });
+                }
+            }, 30000); // Cada 30 segundos
+        }
+
+        // Actualizar estados de UI
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (connected) {
+                statusDot.className = 'status-dot status-connected';
+                statusText.textContent = 'Conectado';
+            } else {
+                statusDot.className = 'status-dot status-disconnected';
+                statusText.textContent = 'Desconectado';
+            }
+        }
+
+        function updateAuthStatus(authenticated) {
+            const statusDot = document.getElementById('authStatus');
+            const statusText = document.getElementById('authText');
+            
+            if (authenticated) {
+                statusDot.className = 'status-dot status-connected';
+                statusText.textContent = `${currentUser?.username || 'Autenticado'}`;
+            } else {
+                statusDot.className = 'status-dot status-disconnected';
+                statusText.textContent = 'No autenticado';
+            }
+        }
+
+        function updateControlStatus(hasControlStatus) {
+            const statusDot = document.getElementById('controlStatus');
+            const statusText = document.getElementById('controlText');
+            const buttons = ['standBtn', 'sitBtn', 'resetBtn'];
+            
+            if (hasControlStatus) {
+                statusDot.className = 'status-dot status-connected';
+                statusText.textContent = 'Controlando';
+                buttons.forEach(id => document.getElementById(id).disabled = false);
+            } else {
+                statusDot.className = 'status-dot status-disconnected';
+                statusText.textContent = 'Sin control';
+                buttons.forEach(id => document.getElementById(id).disabled = true);
+            }
+        }
+
+        function enableControlButtons() {
+            document.getElementById('requestControlBtn').disabled = false;
+            document.getElementById('releaseControlBtn').disabled = false;
+        }
+
+        // Sistema de logging
+        function logMessage(type, message) {
+            const log = document.getElementById('messageLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            
+            // Limitar a 100 entradas
+            while (log.children.length > 100) {
+                log.removeChild(log.firstChild);
+            }
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // Limpieza al cerrar
+        window.addEventListener('beforeunload', function() {
+            if (hasControl) {
+                sendVelocityCommand(0, 0);
+                releaseControl();
+            }
+            
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+            
+            if (multiplexorWs) {
+                multiplexorWs.close();
+            }
+        });
+
+        // Funciones utilitarias
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+
+        function formatBytes(bytes) {
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 Bytes';
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Easter egg - Konami code
+        let konamiCode = [];
+        const konami = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
+        
+        document.addEventListener('keydown', function(e) {
+            konamiCode.push(e.keyCode);
+            if (konamiCode.length > konami.length) {
+                konamiCode.shift();
+            }
+            
+            if (konamiCode.join(',') === konami.join(',')) {
+                logMessage('system', '🎉 ¡Código Konami activado! Desarrollado por Jhosep Zapata - UAO 2025');
+                konamiCode = [];
+            }
+        });
+    </script>
+</body>
+</html>

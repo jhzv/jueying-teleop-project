@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Multiplexor</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .log {
+            background: #000;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #00ff00;
+            height: 300px;
+            overflow-y: auto;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #00ff00;
+        }
+        .error { border-color: #ff0000; color: #ff0000; }
+        .success { border-color: #00ff00; color: #00ff00; }
+        .info { border-color: #00aaff; color: #00aaff; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test del Multiplexor</h1>
+    
+    <div class="status" id="status">
+        ❌ Desconectado
+    </div>
+    
+    <div>
+        <button onclick="connect()">🔌 Conectar</button>
+        <button onclick="disconnect()">🔌 Desconectar</button>
+        <button onclick="sendTestCommand()">📤 Enviar Comando Test</button>
+        <button onclick="clearLog()">🗑️ Limpiar Log</button>
+    </div>
+    
+    <h3>Log de Mensajes:</h3>
+    <div class="log" id="log"></div>
+
+    <script>
+        let ws = null;
+        const MULTIPLEXOR_URL = 'ws://localhost:8080';
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${time}] ${message}`;
+            entry.style.color = type === 'error' ? '#ff0000' : type === 'success' ? '#00ff00' : '#00aaff';
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(connected, message) {
+            const statusEl = document.getElementById('status');
+            if (connected) {
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ ' + message;
+            } else {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ ' + message;
+            }
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Ya estás conectado', 'info');
+                return;
+            }
+
+            log('Conectando a ' + MULTIPLEXOR_URL, 'info');
+            ws = new WebSocket(MULTIPLEXOR_URL);
+
+            ws.onopen = () => {
+                log('✅ Conectado al multiplexor', 'success');
+                updateStatus(true, 'Conectado al Multiplexor');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    log(`📨 Recibido: ${message.type}`, 'info');
+                    
+                    if (message.type === 'welcome') {
+                        log(`👋 Bienvenido! ID: ${message.clientId}`, 'success');
+                        log(`🤖 ROS Bridge: ${message.rosbridgeConnected ? 'Conectado' : 'Desconectado'}`, 
+                            message.rosbridgeConnected ? 'success' : 'error');
+                    }
+                    
+                    if (message.type === 'ros_data') {
+                        log(`📊 Datos ROS: ${JSON.stringify(message.data).substring(0, 100)}...`, 'info');
+                    }
+                } catch (e) {
+                    log('Error parseando mensaje: ' + e.message, 'error');
+                }
+            };
+
+            ws.onclose = () => {
+                log('❌ Desconectado del multiplexor', 'error');
+                updateStatus(false, 'Desconectado');
+            };
+
+            ws.onerror = (error) => {
+                log('❌ Error de WebSocket: ' + error, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('Desconectado manualmente', 'info');
+            }
+        }
+
+        function sendTestCommand() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ No estás conectado', 'error');
+                return;
+            }
+            
+            // Comando de velocidad para ROS
+            const cmd = {
+                op: 'publish',
+                topic: '/cmd_vel',
+                msg: {
+                    linear: { x: 0.1, y: 0, z: 0 },
+                    angular: { x: 0, y: 0, z: 0 }
+                }
+            };
+            
+            // Debugging en consola
+            console.log('Enviando comando:', JSON.stringify(cmd, null, 2));
+            
+            ws.send(JSON.stringify(cmd));
+            log('📤 Comando enviado: ' + JSON.stringify(cmd, null, 2), 'success');
+            
+            // Detener después de 1 segundo
+            setTimeout(() => {
+                const stopCmd = {
+                    op: 'publish',
+                    topic: '/cmd_vel',
+                    msg: {
+                        linear: { x: 0, y: 0, z: 0 },
+                        angular: { x: 0, y: 0, z: 0 }
+                    }
+                };
+                console.log('Enviando comando de paro:', JSON.stringify(stopCmd, null, 2));
+                ws.send(JSON.stringify(stopCmd));
+                log('🛑 Comando de paro enviado', 'info');
+            }, 1000);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Auto-conectar al cargar
+        window.onload = () => {
+            log('🚀 Cliente de prueba listo', 'success');
+            log('👆 Click en "Conectar" para empezar', 'info');
+        };
+    </script>
+</body>
+</html>
